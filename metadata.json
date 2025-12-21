@@ -1,0 +1,7 @@
+{
+  "name": "DreamWeave Tales",
+  "description": "A magical AI-powered interactive storybook platform where your choices weave the adventure.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
