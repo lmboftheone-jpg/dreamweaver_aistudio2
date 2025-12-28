@@ -1,0 +1,11 @@
+{
+  "antigravity": {
+    "TIMEOUT": 4,
+    "ASSERTION": 2,
+    "SELECTOR": 1
+  },
+  "cursor": {
+    "SELECTOR": 5,
+    "NAVIGATION": 2
+  }
+}

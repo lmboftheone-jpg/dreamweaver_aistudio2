@@ -1,5 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Story, StoryPage } from '../../types';
+import dynamic from 'next/dynamic';
+import AudioEngine from '../reader/AudioEngine';
+
+const PDFExportButton = dynamic(() => import('../reader/PDFExportButton'), {
+    ssr: false,
+    loading: () => <button disabled className="flex-1 h-12 flex items-center justify-center bg-gray-200 text-gray-400 rounded-full text-xs font-bold">Loading PDF...</button>
+});
 
 interface StoryboardViewerProps {
     previewDraft: Partial<Story>;
@@ -9,13 +16,15 @@ interface StoryboardViewerProps {
     onRegenerateCover: () => void;
     onFinalizeStory: () => void;
     regeneratingPageId: string | null;
-    onRegeneratePageImage: (pageId: string) => void;
+    onRegeneratePageImage: (pageId: string, newPrompt?: string) => void;
     onUpdatePageContent: (pageId: string, content: string) => void;
     draggedIndex: number | null;
     onDragStart: (index: number) => void;
     onDragOver: (e: React.DragEvent) => void;
     onDrop: (index: number) => void;
     isBranching: boolean;
+    onComplete: (story: Story) => void;
+    isGenerating: boolean;
 }
 
 const StoryboardViewer: React.FC<StoryboardViewerProps> = ({
@@ -34,8 +43,63 @@ const StoryboardViewer: React.FC<StoryboardViewerProps> = ({
     onDrop,
     isBranching
 }) => {
+    const [editingPageId, setEditingPageId] = useState<string | null>(null);
+    const [editPrompt, setEditPrompt] = useState('');
+
+    const openMagicBrush = (page: StoryPage) => {
+        setEditingPageId(page.id);
+        const currentPrompt = page.content; // Default to content as prompt basis
+        setEditPrompt(currentPrompt);
+    };
+
+    const handleMagicRegenerate = () => {
+        if (editingPageId) {
+            onRegeneratePageImage(editingPageId, editPrompt);
+            setEditingPageId(null);
+        }
+    };
+
     return (
-        <div className="h-full overflow-y-auto max-h-[65vh] pr-4 hide-scrollbar">
+        <div className="h-full overflow-y-auto max-h-[65vh] pr-4 hide-scrollbar relative">
+            {/* Edit Mode++ Modal */}
+            {editingPageId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-black flex items-center gap-2">
+                                <span className="material-symbols-outlined text-primary">brush</span>
+                                Magic Brush
+                            </h3>
+                            <button onClick={() => setEditingPageId(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-4">Refine the vision for this scene. Describe exactly what you want to see.</p>
+                        <textarea
+                            value={editPrompt}
+                            onChange={(e) => setEditPrompt(e.target.value)}
+                            className="w-full h-32 p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border-2 border-primary/20 focus:border-primary outline-none resize-none text-sm font-medium mb-4"
+                            placeholder="Describe the scene..."
+                        />
+                        <div className="flex justify-end gap-3">
+                            <button onClick={() => setEditingPageId(null)} className="px-4 py-2 font-bold text-gray-400 hover:text-gray-600">Cancel</button>
+                            <button
+                                onClick={handleMagicRegenerate}
+                                className="px-6 py-2 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                            >
+                                Re-Paint
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <AudioEngine
+                mood={previewDraft.pages?.[editingPageId ? previewDraft.pages.findIndex(p => p.id === editingPageId) : 0]?.mood}
+                soundEffects={previewDraft.pages?.[editingPageId ? previewDraft.pages.findIndex(p => p.id === editingPageId) : 0]?.soundEffects}
+                isPlaying={true}
+            />
+
             <div className="space-y-12 relative">
                 {/* Vertical Magic Thread */}
                 <div className="absolute left-[2.4rem] top-24 bottom-24 w-0.5 bg-gradient-to-b from-primary/5 via-primary/40 to-primary/5 border-l-2 border-dashed border-primary/20 pointer-events-none hidden md:block"></div>
@@ -58,8 +122,11 @@ const StoryboardViewer: React.FC<StoryboardViewerProps> = ({
                         <p className="text-sm italic leading-relaxed text-gray-500 bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
                             {previewDraft.heroDescription}
                         </p>
-                        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex gap-4">
+                        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex flex-wrap gap-2">
                             <button onClick={() => setPreviewDraft(null)} className="flex-1 h-12 rounded-full border border-gray-200 dark:border-gray-700 text-xs font-bold hover:bg-gray-50 dark:hover:bg-gray-900 transition-all">Clear Story</button>
+
+                            <PDFExportButton story={previewDraft} coverUrl={generatedCoverUrl} />
+
                             <button onClick={onFinalizeStory} className="flex-[2] h-12 bg-primary text-white rounded-full text-xs font-black shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">Save To Library</button>
                         </div>
                     </div>
@@ -93,26 +160,34 @@ const StoryboardViewer: React.FC<StoryboardViewerProps> = ({
                                 )}
 
                                 {/* Individual Page Illustration Control */}
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onRegeneratePageImage(page.id); }}
+                                        title="Quick Regenerate"
                                         disabled={!!regeneratingPageId}
                                         className="p-3 bg-white/90 backdrop-blur-md rounded-full text-primary shadow-xl hover:scale-110 active:scale-95 transition-all disabled:opacity-50"
                                     >
-                                        <span className={`material-symbols-outlined text-2xl ${regeneratingPageId === page.id ? 'animate-spin' : ''}`}>brush</span>
+                                        <span className={`material-symbols-outlined text-xl ${regeneratingPageId === page.id ? 'animate-spin' : ''}`}>refresh</span>
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); openMagicBrush(page); }}
+                                        title="Magic Brush (Edit Prompt)"
+                                        disabled={!!regeneratingPageId}
+                                        className="p-3 bg-primary/90 backdrop-blur-md rounded-full text-white shadow-xl hover:scale-110 active:scale-95 transition-all disabled:opacity-50"
+                                    >
+                                        <span className="material-symbols-outlined text-xl">brush</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="flex-grow flex flex-col justify-center">
+                            <div className="flex-grow space-y-3">
                                 <textarea
+                                    className="w-full h-full min-h-[120px] bg-transparent resize-none outline-none text-gray-600 dark:text-gray-300 leading-relaxed p-2 rounded-xl focus:bg-gray-50 dark:focus:bg-gray-900 transition-colors border border-transparent focus:border-gray-100 dark:focus:border-gray-700"
                                     value={page.content}
                                     onChange={(e) => onUpdatePageContent(page.id, e.target.value)}
-                                    className="w-full p-4 bg-gray-50/50 dark:bg-gray-900/50 border-none focus:ring-2 focus:ring-primary/20 rounded-2xl text-lg font-serif leading-relaxed italic resize-none"
-                                    rows={3}
                                 />
                                 {isBranching && page.choices && page.choices.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-4">
+                                    <div className="flex flex-wrap gap-2 mt-2">
                                         {page.choices.map((c, i) => (
                                             <span key={i} className="text-[10px] font-bold px-3 py-1 bg-primary/5 text-primary border border-primary/20 rounded-full">
                                                 Path: {c.text}

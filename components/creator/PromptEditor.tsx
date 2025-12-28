@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { PRESET_PROMPTS } from '../../constants';
+import { PRESET_PROMPTS } from '../../lib/constants';
 
 interface PromptEditorProps {
     prompt: string;
@@ -7,6 +7,13 @@ interface PromptEditorProps {
     heroPreviewUrl: string | null;
     onHeroImageUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onRemoveHeroImage: () => void;
+    isBranching?: boolean;
+    setIsBranching: (value: boolean) => void;
+    isCollaborative: boolean;
+    setIsCollaborative: (value: boolean) => void;
+    inviteLink: string;
+    selectedStyle: any; // Using any to avoid importing 'ArtStyle' type
+    setSelectedStyle: (style: any) => void;
 }
 
 const PromptEditor: React.FC<PromptEditorProps> = ({
@@ -14,7 +21,14 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
     setPrompt,
     heroPreviewUrl,
     onHeroImageUpload,
-    onRemoveHeroImage
+    onRemoveHeroImage,
+    isBranching,
+    setIsBranching,
+    isCollaborative,
+    setIsCollaborative,
+    inviteLink,
+    selectedStyle,
+    setSelectedStyle
 }) => {
     const quickImageInputRef = useRef<HTMLInputElement>(null);
 
@@ -23,6 +37,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
             <div className="relative">
                 <textarea
                     value={prompt}
+                    data-testid="prompt-input"
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Once upon a time, in a world made of candy..."
                     className="w-full p-0 bg-transparent border-none focus:ring-0 text-2xl font-medium leading-relaxed resize-none scrollbar-hide min-h-[200px]"

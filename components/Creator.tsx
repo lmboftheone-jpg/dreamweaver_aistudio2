@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ART_STYLES, VOICES } from '../constants';
+import { ART_STYLES, VOICES } from '../lib/constants';
 import { generateStoryDraft, generateIllustration, generateSpeech, ImageInfo } from '../services/geminiService';
 import { Story, StoryPage } from '../types';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
@@ -7,6 +7,7 @@ import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import PromptEditor from './creator/PromptEditor';
 import StoryboardViewer from './creator/StoryboardViewer';
 import AssetManager from './creator/AssetManager';
+import CharacterBank from './CharacterBank';
 import LoadingSkeleton from './ui/LoadingSkeleton';
 
 interface Version {
@@ -21,10 +22,12 @@ interface Version {
 
 interface CreatorProps {
   onComplete: (story: Story) => void;
+  userId?: string;
+  initialPrompt?: string;
 }
 
-const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
-  const [prompt, setPrompt] = useState('');
+const Creator: React.FC<CreatorProps> = ({ onComplete, userId, initialPrompt }) => {
+  const [prompt, setPrompt] = useState(initialPrompt || '');
   const [selectedStyle, setSelectedStyle] = useState(ART_STYLES[0]);
   const [selectedVoice, setSelectedVoice] = useState(VOICES[0]);
   const [isBranching, setIsBranching] = useState(false);
@@ -34,13 +37,15 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
   // Personalization Assets
   const [heroImage, setHeroImage] = useState<ImageInfo | null>(null);
   const [heroPreviewUrl, setHeroPreviewUrl] = useState<string | null>(null);
+  const [heroDescription, setHeroDescription] = useState<string>(''); // Text-based character ref
   const [threeDModelUrl, setThreeDModelUrl] = useState<string | null>(null);
+  const [voiceSample, setVoiceSample] = useState<string | null>(null); // Base64 audio sample for cloning
 
   // Collaboration & History State
   const [isCollaborative, setIsCollaborative] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
   const [versionHistory, setVersionHistory] = useState<Version[]>([]);
-  const [activeTab, setActiveTab] = useState<'prompt' | 'storyboard' | 'assets' | 'history'>('prompt');
+  const [activeTab, setActiveTab] = useState<'prompt' | 'characters' | 'assets' | 'history' | 'storyboard'>('prompt');
 
   // Preview State (Draft Data)
   const [previewDraft, setPreviewDraft] = useState<Partial<Story> | null>(null);
@@ -51,7 +56,7 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
 
   // Audio Preview Logic
   const { play, stop, isPlaying } = useAudioPlayer();
-  const [isPreviewingVoice, setIsPreviewingVoice] = useState(false); // Local state for UI loading spinner
+  const [isPreviewingVoice, setIsPreviewingVoice] = useState(false);
 
   const handlePreviewVoice = async () => {
     if (isPlaying || isPreviewingVoice) {
@@ -70,6 +75,10 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
       setIsPreviewingVoice(false);
     }
   };
+
+  useEffect(() => {
+    if (initialPrompt) setPrompt(initialPrompt);
+  }, [initialPrompt]);
 
   useEffect(() => {
     if (isCollaborative && !inviteLink) {
@@ -98,20 +107,20 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
     Scene Essence: ${summary}`;
 
     const narrativeContext = isBranching
-      ? "VISUAL CONCEPT: A majestic crossroads or multi-dimensional gateway with glowing divergent paths and mystical portals, symbolizing player agency and infinite choice. The hero stands at the center of these branching journeys."
-      : "VISUAL CONCEPT: A single, epic winding path stretching toward a grand and breathtaking destination on the horizon, symbolizing a destiny-filled linear journey.";
+      ? "Interactive Adventure Gamebook Cover, Dynamic Composition with multiple paths visual hint."
+      : "Classic Children's Storybook Cover.";
 
-    const styleContext = `Style: ${selectedStyle.name}. ${selectedStyle.prompt}`;
-    const heroContext = heroDesc ? `Hero Appearance: ${heroDesc}.` : "Hero: A small, brave adventurer.";
+    const styleContext = `Art Style: ${selectedStyle.prompt}.`;
+    const characterContext = heroDesc
+      ? `Main Character: ${heroDesc}. Ensure the character on cover MATCHES this description perfectly.`
+      : "Featuring the main character.";
 
-    return `
-      ${basePrompt}
-      ${narrativeContext}
-      ${heroContext}
-      ${styleContext}
-      MANDATORY REQUIREMENT: NO TEXT. PURE ARTWORK ONLY. ABSOLUTELY NO LETTERS, NO TITLES, NO ALPHABET.
-      Cinematic lighting, high-fidelity masterpiece, vibrant and emotive colors.
-    `.trim();
+    return `${basePrompt} ${narrativeContext} ${styleContext} ${characterContext} No text overlays. High resolution, 8k.`;
+  };
+
+  const handleCharacterSelect = (char: { name: string, description: string }) => {
+    setHeroDescription(`${char.name}: ${char.description}`);
+    alert(`Selected ${char.name} as the main character!`);
   };
 
   const handleRegenerateCover = async () => {
@@ -121,19 +130,18 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
       const coverArtPrompt = buildCoverPrompt(
         previewDraft.title || "The Unwritten Tale",
         previewDraft.pages[0].content,
-        previewDraft.heroDescription
+        // Prioritize heroDescription from Bank, fallback to uploaded image logic if needed (though API uses heroDescription string mainly for context)
+        heroDescription || (previewDraft.heroDescription)
       );
-      const coverArt = await generateIllustration(coverArtPrompt, selectedStyle.prompt, previewDraft.heroDescription);
+      // Ensure we pass heroDescription for consistency
+      const coverArt = await generateIllustration(coverArtPrompt, selectedStyle.prompt, heroDescription || previewDraft.heroDescription);
       if (coverArt && coverArt.startsWith('data:image')) {
         setGeneratedCoverUrl(coverArt);
       } else {
         throw new Error("Invalid image response");
       }
     } catch (err) {
-      console.warn("Cover regeneration failed. Falling back to page 1 art.", err);
-      if (previewDraft.pages[0].illustrationUrl) {
-        setGeneratedCoverUrl(previewDraft.pages[0].illustrationUrl);
-      }
+      console.warn("Cover regeneration failed.", err);
     } finally {
       setIsRegeneratingCover(false);
     }
@@ -146,7 +154,8 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
 
     setRegeneratingPageId(pageId);
     try {
-      const newIllustration = await generateIllustration(page.content, selectedStyle.prompt, previewDraft.heroDescription);
+      // Use active heroDescription
+      const newIllustration = await generateIllustration(page.content, selectedStyle.prompt, heroDescription || previewDraft.heroDescription);
       const updatedPages = previewDraft.pages.map(p =>
         p.id === pageId ? { ...p, illustrationUrl: newIllustration } : p
       );
@@ -166,43 +175,58 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
     setPreviewDraft({ ...previewDraft, pages: updatedPages });
   };
 
-  const handleWeave = useCallback(async () => {
+  const handleWeave = async () => {
     if (!prompt.trim()) return;
     saveVersion('weave');
     setIsGenerating(true);
     setGenStep(heroImage ? 'Analyzing hero appearance...' : 'Weaving story threads...');
 
+    // Inject Character Context into prompt if exists
+    let finalPrompt = prompt;
+    if (heroDescription) {
+      finalPrompt += `\n\nIMPORTANT: The main character is ${heroDescription}. Ensure they are consistent.`;
+    }
+
     const specializedPrompt = isBranching
-      ? `START BRANCHING STORY: ${prompt}. MANDATORY: Page 1 must have interactive choices.`
-      : prompt;
+      ? `START BRANCHING STORY: ${finalPrompt}. MANDATORY: Page 1 must have interactive choices.`
+      : finalPrompt;
 
     try {
+      // Pass heroImage OR undefined. Note: generateStoryDraft might need updating to take heroDescription explicitly if it doesn't already, 
+      // but for now we bake it into prompt. Ideally we pass it separately if the API supports it.
+      // Current API takes: (prompt, style, isBranching, heroImage)
       const draft = await generateStoryDraft(specializedPrompt, selectedStyle.name, isBranching, heroImage || undefined);
+
+      // Store the active hero description in the draft for future reference (regeneration)
+      if (heroDescription) {
+        draft.heroDescription = heroDescription;
+      }
+
       setGenStep('Painting opening scene...');
       const firstPage = draft.pages?.[0] as StoryPage;
 
       if (firstPage) {
         let firstPageIllustration = "https://picsum.photos/seed/fallback/800/800";
         try {
-          firstPageIllustration = await generateIllustration(firstPage.content, selectedStyle.prompt, draft.heroDescription);
+          firstPageIllustration = await generateIllustration(firstPage.content, selectedStyle.prompt, draft.heroDescription || heroDescription);
         } catch (illErr) {
           console.warn("Page 1 illustration failed", illErr);
         }
 
         if (draft.pages) draft.pages[0].illustrationUrl = firstPageIllustration;
         setPreviewDraft(draft);
-        setActiveTab('storyboard');
+        setActiveTab('storyboard'); // Removed 'characters' tab auto-switch, stick to storyboard flow
 
         setGenStep('Painting majestic cover art...');
-        let coverUrl = firstPageIllustration; // Reliable fallback
+        let coverUrl = firstPageIllustration;
         try {
-          const coverArtPrompt = buildCoverPrompt(draft.title || "The Unwritten Tale", firstPage.content, draft.heroDescription);
-          const coverArt = await generateIllustration(coverArtPrompt, selectedStyle.prompt, draft.heroDescription);
+          const coverArtPrompt = buildCoverPrompt(draft.title || "The Unwritten Tale", firstPage.content, draft.heroDescription || heroDescription);
+          const coverArt = await generateIllustration(coverArtPrompt, selectedStyle.prompt, draft.heroDescription || heroDescription);
           if (coverArt && coverArt.startsWith('data:image')) {
             coverUrl = coverArt;
           }
         } catch (coverErr) {
-          console.warn("Cover art generation failed. Gracefully falling back to page 1 art.", coverErr);
+          console.warn("Cover art generation failed.", coverErr);
         }
         setGeneratedCoverUrl(coverUrl);
       }
@@ -210,8 +234,9 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
       alert(err instanceof Error ? err.message : "The weave was interrupted.");
     } finally {
       setIsGenerating(false);
+      setGenStep('');
     }
-  }, [prompt, selectedStyle, isBranching, heroImage]);
+  };
 
   const finalizeStory = () => {
     if (!previewDraft || !previewDraft.pages?.length) return;
@@ -221,7 +246,7 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
       author: previewDraft.author || "DreamWeaver",
       artStyle: selectedStyle.id,
       voiceId: selectedVoice.id,
-      heroDescription: previewDraft.heroDescription,
+      heroDescription: previewDraft.heroDescription || heroDescription,
       coverUrl: generatedCoverUrl || previewDraft.pages[0].illustrationUrl || selectedStyle.imageUrl,
       isBranching,
       createdAt: new Date().toISOString().split('T')[0],
@@ -239,6 +264,8 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
         const base64 = (reader.result as string).split(',')[1];
         setHeroImage({ data: base64, mimeType: file.type });
         setHeroPreviewUrl(reader.result as string);
+        // Clear text description if image is uploaded to avoid conflict? Or keep both?
+        // Let's keep both but maybe image takes precedence in API logic if both passed.
       };
       reader.readAsDataURL(file);
     }
@@ -365,6 +392,9 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
               <button onClick={() => setActiveTab('prompt')} className={`flex-1 h-12 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'prompt' ? 'bg-white dark:bg-gray-800 text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                 <span className="material-symbols-outlined text-lg">edit_note</span> Prompt
               </button>
+              <button onClick={() => setActiveTab('characters')} className={`flex-1 h-12 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'characters' ? 'bg-white dark:bg-gray-800 text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                <span className="material-symbols-outlined text-lg">person_add</span> Characters
+              </button>
               <button
                 onClick={() => setActiveTab('storyboard')}
                 className={`flex-1 h-12 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'storyboard' ? 'bg-white dark:bg-gray-800 text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
@@ -383,8 +413,30 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
                   setPrompt={setPrompt}
                   heroPreviewUrl={heroPreviewUrl}
                   onHeroImageUpload={handleImageUpload}
-                  onRemoveHeroImage={() => { setHeroImage(null); setHeroPreviewUrl(null); }}
+                  onRemoveHeroImage={() => { setHeroImage(null); setHeroPreviewUrl(null); setHeroDescription(''); }}
+                  isBranching={isBranching}
+                  setIsBranching={setIsBranching}
+                  isCollaborative={isCollaborative}
+                  setIsCollaborative={setIsCollaborative}
+                  inviteLink={inviteLink}
+                  selectedStyle={selectedStyle}
+                  setSelectedStyle={setSelectedStyle}
                 />
+              )}
+
+              {activeTab === 'characters' && (
+                <div className="space-y-4">
+                  <h3 className="font-bold text-lg">Character Bank</h3>
+                  <p className="text-xs text-gray-500">Select a character to ensure they appear consistently in your story.</p>
+                  <CharacterBank onSelect={handleCharacterSelect} />
+                  {heroDescription && (
+                    <div className="mt-4 p-3 bg-primary/10 rounded-xl border border-primary/20">
+                      <p className="text-xs font-bold text-primary uppercase mb-1">Active Hero</p>
+                      <p className="text-sm font-medium">{heroDescription}</p>
+                      <button onClick={() => setHeroDescription('')} className="text-xs text-red-500 mt-2 underline">Clear Selection</button>
+                    </div>
+                  )}
+                </div>
               )}
 
               {activeTab === 'storyboard' && (
@@ -410,15 +462,27 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     isBranching={isBranching}
+                    onComplete={onComplete}
+                    isGenerating={isGenerating}
                   />
                 )
               )}
 
               {activeTab === 'assets' && (
                 <AssetManager
+                  heroImage={heroImage}
+                  setHeroImage={setHeroImage}
                   heroPreviewUrl={heroPreviewUrl}
+                  setHeroPreviewUrl={setHeroPreviewUrl}
                   onHeroImageUpload={handleImageUpload}
                   threeDModelUrl={threeDModelUrl}
+                  setThreeDModelUrl={setThreeDModelUrl}
+                  selectedVoice={selectedVoice}
+                  setSelectedVoice={setSelectedVoice}
+                  handlePreviewVoice={handlePreviewVoice}
+                  isPlayingVoice={isPlaying || isPreviewingVoice}
+                  voiceSample={voiceSample}
+                  setVoiceSample={setVoiceSample}
                 />
               )}
             </div>
@@ -426,6 +490,7 @@ const Creator: React.FC<CreatorProps> = ({ onComplete }) => {
             <div className="p-6 bg-gray-50/50 dark:bg-gray-900/50 flex justify-end items-center gap-4">
               <button
                 onClick={handleWeave}
+                data-testid="weave-button"
                 disabled={!prompt.trim() || isGenerating}
                 className="h-16 px-10 bg-primary text-white font-black text-lg rounded-full shadow-xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
               >

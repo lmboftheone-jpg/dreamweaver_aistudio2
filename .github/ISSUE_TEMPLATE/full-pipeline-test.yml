@@ -1,0 +1,74 @@
+name: 🧪 Full Pipeline Test
+description: 전체 자동화 파이프라인(E2E) 검증용 테스트 Issue
+title: "[TEST] Full Pipeline E2E Test"
+labels:
+  - auto-dev
+  - test
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🧪 Full Pipeline End-to-End Test
+
+        이 Issue는 **전체 자동화 파이프라인을 검증**하기 위한 테스트용입니다.
+
+        테스트 범위:
+        - Issue → Agent 인식
+        - Branch + Draft PR 생성
+        - Smoke Test → Ready 전환
+        - Quality Score 계산
+        - Dashboard Artifact 생성
+        - Auto Merge / Policy 검증
+
+        ⚠️ 실제 기능 개발 목적이 아닙니다.
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: 🤖 Test Agent
+      description: 테스트할 Agent를 선택하세요
+      options:
+        - antigravity
+        - cursor
+        - copilot
+    validations:
+      required: true
+
+  - type: dropdown
+    id: expected_result
+    attributes:
+      label: 🎯 Expected Result
+      description: 이번 테스트에서 기대하는 결과
+      options:
+        - Smoke only (Draft → Ready)
+        - Full pass (Auto Merge)
+        - Fail on Critical
+        - Fail on Quality Score
+        - Agent Policy Block
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: test_flags
+    attributes:
+      label: 🧪 Test Flags
+      description: 테스트 목적에 맞게 체크
+      options:
+        - label: Enable smoke test only
+        - label: Force critical failure
+        - label: Force low quality score
+        - label: Simulate low-score agent
+        - label: Disable auto merge
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 📝 Test Notes
+      description: 특이사항 또는 테스트 목적
+      placeholder: |
+        예:
+        - Dashboard Artifact 링크 확인
+        - Agent 추천 결과 확인
+        - 정책 발동 여부 확인

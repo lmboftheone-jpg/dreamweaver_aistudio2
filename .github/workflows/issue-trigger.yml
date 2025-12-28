@@ -1,0 +1,143 @@
+name: 🎫 Issue Trigger Pipeline
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  init-pipeline:
+    if: contains(github.event.issue.labels.*.name, 'auto-dev')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Parse Issue Inputs
+        id: parse
+        run: |
+          node scripts/parse-issue-inputs.js
+          echo "FAIL_ON_CRITICAL=$(jq -r .expected.failCritical issue-context.json)" >> $GITHUB_ENV
+
+      - name: Upload Issue Context
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-context
+          path: issue-context.json
+
+      - name: Create Branch & Push
+        id: create_branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          ISSUE_NUM=${{ github.event.issue.number }}
+          BRANCH_NAME="feat/issue-${ISSUE_NUM}"
+
+          git fetch origin
+          if git rev-parse --verify origin/$BRANCH_NAME >/dev/null 2>&1; then
+            echo "Branch $BRANCH_NAME already exists on remote. Checking out..."
+            # Protect the new issue-context.json
+            mv issue-context.json issue-context.json.new
+            git checkout -b $BRANCH_NAME origin/$BRANCH_NAME
+            # Restore and overwrite
+            mv issue-context.json.new issue-context.json
+          else
+            echo "Creating new branch $BRANCH_NAME."
+            git checkout -b $BRANCH_NAME
+          fi
+
+          # Commit issue-context.json so CI pipeline can read it
+          if [ -f issue-context.json ]; then
+            git add issue-context.json
+            git commit -m "chore: update issue context for #${ISSUE_NUM}" --allow-empty
+            git push origin $BRANCH_NAME
+          else
+             echo "issue-context.json not found!"
+             exit 1
+          fi
+
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: Create or Reuse Draft PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch_name = process.env.BRANCH_NAME;
+            const issue_number = context.issue.number;
+            const issue_title = context.payload.issue.title;
+            const { owner, repo } = context.repo;
+
+            // 1. Check for existing PR
+            const existingPrs = await github.rest.pulls.list({
+              owner,
+              repo,
+              head: `${owner}:${branch_name}`,
+              state: 'open'
+            });
+
+            let pr;
+            if (existingPrs.data.length > 0) {
+              pr = existingPrs.data[0];
+              console.log(`✅ Found existing PR: ${pr.html_url}`);
+            } else {
+              console.log('creating new PR...');
+              try {
+                const created = await github.rest.pulls.create({
+                  owner,
+                  repo,
+                  title: `feat: ${issue_title}`,
+                  head: branch_name,
+                  base: 'main',
+                  body: `Resolves #${issue_number}\n\nAutomated PR initiated by Issue #${issue_number}`,
+                  draft: true
+                });
+                pr = created.data;
+                console.log(`✅ PR Created: ${pr.html_url}`);
+              } catch (error) {
+                 console.log(`PR Creation Validation Error: ${error.message}`);
+                 // Fallback if race condition or other error
+                 if (error.message.includes('A pull request already exists')) {
+                    const retryList = await github.rest.pulls.list({
+                      owner, repo, head: `${owner}:${branch_name}`, state: 'open'
+                    });
+                    if (retryList.data.length > 0) pr = retryList.data[0];
+                 }
+              }
+            }
+
+            if (!pr) {
+               core.setFailed("Failed to create or find PR");
+               return;
+            }
+
+            // 2. Link PR to Issue
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue_number,
+              body: `🚀 **Pipeline Triggered/Updated**\n\n- Branch: \`${branch_name}\`\n- PR: ${pr.html_url}\n\nContext updated & pipeline re-triggered.`
+            });
+
+            // 3. Trigger CI Pipeline Manually
+            console.log(`Triggering CI for PR #${pr.number}...`);
+            await github.rest.actions.createWorkflowDispatch({
+              owner,
+              repo,
+              workflow_id: 'ci-playwright.yml',
+              ref: 'main', 
+              inputs: {
+                pr_number: pr.number.toString()
+              }
+            });
+            console.log('✅ CI Pipeline Triggered!');

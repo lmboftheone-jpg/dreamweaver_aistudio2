@@ -1,0 +1,140 @@
+name: 🧪 Test Only - Playwright QA
+
+on:
+    workflow_dispatch:
+        inputs:
+            smokeOnly:
+                description: "Run smoke tests only"
+                required: false
+                default: "false"
+            generateTests:
+                description: "Generate tests from Issue context"
+                required: false
+                default: "true"
+
+    pull_request:
+        branches: [main, develop]
+        types: [opened, synchronize, reopened]
+        paths:
+            - "tests/**"
+            - "scripts/**"
+            - ".github/workflows/test-only.yml"
+
+env:
+    NODE_VERSION: 20
+
+jobs:
+    test-only:
+        name: Test Only QA
+        runs-on: ubuntu-latest
+
+        steps:
+            # ------------------------------
+            # Checkout
+            # ------------------------------
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+
+            # ------------------------------
+            # Install
+            # ------------------------------
+            - run: npm ci
+            - run: npx playwright install --with-deps
+
+            # ------------------------------
+            # Start App
+            # ------------------------------
+            - name: Start app
+              run: npm run dev &
+
+            - name: Wait for app
+              run: npx wait-on http://localhost:3000
+
+            # ------------------------------
+            # Optional: Load Issue Context
+            # ------------------------------
+            - name: Download Issue Context
+              uses: actions/download-artifact@v4
+              with:
+                  name: issue-context
+              continue-on-error: true
+
+            # ------------------------------
+            # Generate Tests (Optional)
+            # ------------------------------
+            - name: Generate Test Cases from Issue
+              if: ${{ inputs.generateTests != 'false' }}
+              run: |
+                  if [ -f issue-context.json ]; then
+                    node scripts/generate-test-cases.js
+                    node scripts/generate-playwright-tests.js
+                  else
+                    echo "No issue-context.json, skipping test generation"
+                  fi
+
+            # ------------------------------
+            # Run Tests
+            # ------------------------------
+            - name: Run Smoke Tests
+              if: ${{ inputs.smokeOnly == 'true' }}
+              run: npx playwright test tests/smoke
+
+            - name: Run Full Playwright Tests
+              if: ${{ inputs.smokeOnly != 'true' }}
+              run: npx playwright test
+
+            # ------------------------------
+            # Collect Failures
+            # ------------------------------
+            - name: Collect Failure Context
+              if: failure()
+              run: node scripts/collect-test-failure-context.js
+
+            # ------------------------------
+            # Dashboard (Read-only)
+            # ------------------------------
+            - name: Build Dashboard (Read-only)
+              if: always()
+              run: node scripts/build-dashboard-html.js
+
+            - name: Upload Dashboard Artifact
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: test-only-dashboard
+                  path: dashboard/agent-dashboard.html
+
+            # ------------------------------
+            # PR Comment (QA Summary)
+            # ------------------------------
+            - name: Comment QA Result
+              if: always() && github.event_name == 'pull_request'
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const { owner, repo } = context.repo;
+                      const runId = context.runId;
+                      const issue_number = context.issue.number;
+
+                      const url = `https://github.com/${owner}/${repo}/actions/runs/${runId}#artifacts`;
+
+                      const body = [
+                        '🧪 **Test-only QA Result**',
+                        '',
+                        'This run executed in **TEST-ONLY MODE**.',
+                        '',
+                        '⬇️ Dashboard Artifact:',
+                        url,
+                        '',
+                        '> No auto-merge, no auto-fix, no policy enforcement.'
+                      ].join('\n');
+
+                      await github.rest.issues.createComment({
+                        owner,
+                        repo,
+                        issue_number,
+                        body
+                      });

@@ -1,0 +1,10 @@
+{
+    "antigravity": {
+        "attempts": 10,
+        "success": 7
+    },
+    "cursor": {
+        "attempts": 5,
+        "success": 2
+    }
+}

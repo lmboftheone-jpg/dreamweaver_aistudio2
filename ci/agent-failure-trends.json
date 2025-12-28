@@ -1,0 +1,25 @@
+{
+  "antigravity": {
+    "2025-01-10": {
+      "TIMEOUT": 1,
+      "ASSERTION": 0
+    },
+    "2025-01-12": {
+      "TIMEOUT": 2,
+      "SELECTOR": 1
+    },
+    "2025-01-15": {
+      "TIMEOUT": 0,
+      "ASSERTION": 1
+    }
+  },
+  "cursor": {
+    "2025-01-12": {
+      "SELECTOR": 2
+    },
+    "2025-01-15": {
+      "SELECTOR": 1,
+      "NAVIGATION": 1
+    }
+  }
+}
