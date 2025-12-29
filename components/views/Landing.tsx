@@ -3,9 +3,10 @@ import React from 'react';
 
 interface LandingProps {
   onStart: () => void;
+  onExplore: () => void;
 }
 
-const Landing: React.FC<LandingProps> = ({ onStart }) => {
+const Landing: React.FC<LandingProps> = ({ onStart, onExplore }) => {
   return (
     <div className="flex flex-col">
       <style>{`
@@ -40,7 +41,10 @@ const Landing: React.FC<LandingProps> = ({ onStart }) => {
                 <span>Start Weaving Your Tale</span>
                 <span className="material-symbols-outlined">auto_awesome</span>
               </button>
-              <button className="h-14 px-10 border-2 border-gray-200 dark:border-gray-800 font-bold rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+              <button
+                onClick={onExplore}
+                className="h-14 px-10 border-2 border-gray-200 dark:border-gray-800 font-bold rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+              >
                 Explore Gallery
               </button>
             </div>

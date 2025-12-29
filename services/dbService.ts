@@ -40,7 +40,7 @@ export const dbService = {
             .limit(20);
 
         if (error) {
-            console.error('Error fetching public stories:', error);
+            console.error('Error fetching public stories:', JSON.stringify(error, null, 2));
             return [];
         }
 

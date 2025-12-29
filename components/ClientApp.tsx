@@ -193,9 +193,9 @@ const ClientApp: React.FC = () => {
         <Navbar currentView={currentView} onNavigate={navigate} />
 
         <main className="pt-24 pb-12">
-          {currentView === View.Home && <Landing onStart={() => navigate(View.Create)} />}
+          {currentView === View.Home && <Landing onStart={() => navigate(View.Create)} onExplore={() => navigate(View.Gallery)} />}
 
-          {currentView === View.Home && <Landing onStart={() => navigate(View.Create)} />}
+
 
           {currentView === View.Library && (
             <div className="container mx-auto px-4">
