@@ -320,3 +320,117 @@ jobs:
               pull_number: prNumber,
               merge_method: 'squash'
             });
+
+      - name: 🚀 Mark PR as Ready (Draft → Ready)
+        if: env.SMOKE_PASS == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_ID=$(gh api graphql -f query='
+            query($owner:String!, $repo:String!, $number:Int!) {
+              repository(owner:$owner, name:$repo) {
+                pullRequest(number:$number) {
+                  id
+                  isDraft
+                }
+              }
+            }' -f owner=${GITHUB_REPOSITORY_OWNER} \
+              -f repo=$(basename $GITHUB_REPOSITORY) \
+              -f number=${PR_NUMBER} \
+              --jq '.data.repository.pullRequest.id')
+
+          gh api graphql -f query='
+            mutation($pr:ID!) {
+              markPullRequestReadyForReview(input:{pullRequestId:$pr}) {
+                pullRequest { isDraft }
+              }
+            }' -f pr=$PR_ID
+
+
+            - name: 🔀 Enable Auto Merge
+            if: env.AUTO_MERGE == 'true'
+            env:
+              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            run: |
+              PR_ID=$(gh api graphql -f query='
+                query($owner:String!, $repo:String!, $number:Int!) {
+                  repository(owner:$owner, name:$repo) {
+                    pullRequest(number:$number) {
+                      id
+                    }
+                  }
+                }' -f owner=${GITHUB_REPOSITORY_OWNER} \
+                  -f repo=$(basename $GITHUB_REPOSITORY) \
+                  -f number=${PR_NUMBER} \
+                  --jq '.data.repository.pullRequest.id')
+
+              gh api graphql -f query='
+                mutation($pr:ID!) {
+                  enablePullRequestAutoMerge(input:{
+                    pullRequestId:$pr,
+                    mergeMethod:SQUASH
+                  }) {
+                    pullRequest {
+                      autoMergeRequest {
+                        enabledAt
+                      }
+                    }
+                  }
+                }' -f pr=$PR_ID
+
+            - name: ❌ Disable Auto Merge
+              if: env.DISABLE_AUTO_MERGE == 'true'
+              env:
+                GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                PR_ID=$(gh api graphql -f query='
+                  query($owner:String!, $repo:String!, $number:Int!) {
+                    repository(owner:$owner, name:$repo) {
+                      pullRequest(number:$number) {
+                        id
+                      }
+                    }
+                  }' -f owner=${GITHUB_REPOSITORY_OWNER} \
+                    -f repo=$(basename $GITHUB_REPOSITORY) \
+                    -f number=${PR_NUMBER} \
+                    --jq '.data.repository.pullRequest.id')
+
+                gh api graphql -f query='
+                  mutation($pr:ID!) {
+                    disablePullRequestAutoMerge(input:{pullRequestId:$pr}) {
+                      pullRequest { autoMergeRequest { enabledAt } }
+                    }
+                  }' -f pr=$PR_ID
+
+
+
+            - name: 🧠 Decision Gate
+              run: |
+                if [ "$FORCE_CRITICAL_FAIL" == "true" ]; then
+                  echo "❌ Forced critical failure"
+                  exit 1
+                fi
+
+                if [ "$FORCE_LOW_QUALITY" == "true" ]; then
+                  echo "QUALITY_SCORE=40" >> $GITHUB_ENV
+                else
+                  echo "QUALITY_SCORE=85" >> $GITHUB_ENV
+                fi
+
+            - name: 🔀 Auto Merge Decision
+            run: |
+            if [ "$DISABLE_AUTO_MERGE" == "true" ]; then
+              echo "AUTO_MERGE=false" >> $GITHUB_ENV
+            else
+              echo "AUTO_MERGE=true" >> $GITHUB_ENV
+            fi
+
+            - name: 🧪 Smoke Test
+              if: env.SMOKE_ONLY == 'true'
+              run: |
+                echo "Running smoke test only"
+                echo "SMOKE_PASS=true" >> $GITHUB_ENV
+
+            - name: 🧩 Parse Issue Test Flags
+              run: |
+                bash .github/scripts/parse_flags.sh "${{ github.event.issue.body }}"
