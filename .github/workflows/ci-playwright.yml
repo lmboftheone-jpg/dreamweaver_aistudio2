@@ -38,11 +38,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-          cache: "pip"
-
       - name: Free Disk Space
         run: |
           sudo rm -rf /usr/local/lib/android
@@ -54,25 +49,19 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps
-          # Install CPU-only torch to save space (~2GB vs ~6GB+ for CUDA)
-          pip install torch>=2.2.0 --index-url https://download.pytorch.org/whl/cpu
-          pip install -r backend/requirements.txt
 
       - name: Start Services
         run: |
           npm run dev > frontend.log 2>&1 &
-          cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
 
       - name: Wait for Services
-        run: npx wait-on http://localhost:3000 http://localhost:8000 -t 300000
+        run: npx wait-on http://localhost:3000 -t 300000
 
       - name: Print Service Logs on Failure
         if: failure()
         run: |
           echo "=== FRONTEND LOGS ==="
           cat frontend.log || echo "No frontend log found"
-          echo "=== BACKEND LOGS ==="
-          cat backend.log || echo "No backend log found"
 
       - name: Run Smoke Tests
         run: npx playwright test tests/smoke
@@ -112,11 +101,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-          cache: "pip"
-
       - name: Free Disk Space
         run: |
           sudo rm -rf /usr/local/lib/android
@@ -148,25 +132,19 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps
-          # Install CPU-only torch to save space
-          pip install torch>=2.2.0 --index-url https://download.pytorch.org/whl/cpu
-          pip install -r backend/requirements.txt
 
       - name: Start Services
         run: |
           npm run dev > frontend.log 2>&1 &
-          cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
 
       - name: Wait for Services
-        run: npx wait-on http://localhost:3000 http://localhost:8000 -t 300000
+        run: npx wait-on http://localhost:3000 -t 300000
 
       - name: Print Service Logs on Failure
         if: failure()
         run: |
           echo "=== FRONTEND LOGS ==="
           cat frontend.log || echo "No frontend log found"
-          echo "=== BACKEND LOGS ==="
-          cat backend.log || echo "No backend log found"
 
       # ------------------------------
       # Test Generation (Issue → Tests)
