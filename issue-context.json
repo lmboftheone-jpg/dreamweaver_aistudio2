@@ -1,0 +1,17 @@
+{
+  "agent": "antigravity",
+  "expected": {
+    "smokeOnly": true,
+    "fullPass": false,
+    "failCritical": false,
+    "failScore": false,
+    "policyBlock": false
+  },
+  "flags": {
+    "smokeOnly": true,
+    "forceCriticalFail": true,
+    "forceLowScore": true,
+    "simulateLowAgent": true,
+    "disableAutoMerge": true
+  }
+}
