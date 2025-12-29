@@ -47,7 +47,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm ci
+          npm ci --legacy-peer-deps
           npx playwright install --with-deps
 
       - name: Start Services
@@ -130,7 +130,7 @@ jobs:
       # ------------------------------
       - name: Install dependencies
         run: |
-          npm ci
+          npm ci --legacy-peer-deps
           npx playwright install --with-deps
 
       - name: Start Services
