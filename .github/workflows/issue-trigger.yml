@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -44,7 +46,7 @@ jobs:
           ISSUE_NUM=${{ github.event.issue.number }}
           BRANCH_NAME="feat/issue-${ISSUE_NUM}"
 
-          git fetch origin
+          git fetch origin --prune
           if git rev-parse --verify origin/$BRANCH_NAME >/dev/null 2>&1; then
             echo "Branch $BRANCH_NAME already exists on remote. Checking out..."
             # Protect the new issue-context.json
@@ -61,7 +63,7 @@ jobs:
           if [ -f issue-context.json ]; then
             git add issue-context.json
             git commit -m "chore: update issue context for #${ISSUE_NUM}" --allow-empty
-            git push origin $BRANCH_NAME --force
+            git push origin HEAD:$BRANCH_NAME --force
           else
              echo "issue-context.json not found!"
              exit 1
