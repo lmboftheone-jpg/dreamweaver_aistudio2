@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const agent = fs.readFileSync('agent-name.txt', 'utf8').trim();
 const stats = JSON.parse(

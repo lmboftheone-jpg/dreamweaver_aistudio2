@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const g1 = JSON.parse(fs.readFileSync('gate1.json', 'utf8'));
 const g2 = JSON.parse(fs.readFileSync('gate2.json', 'utf8'));
