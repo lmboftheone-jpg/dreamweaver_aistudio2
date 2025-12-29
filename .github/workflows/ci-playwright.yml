@@ -77,6 +77,10 @@ jobs:
         with:
           script: |
             const prNumber = context.payload.inputs ? context.payload.inputs.pr_number : context.issue.number;
+            console.log(`DEBUG: context.issue.number: ${context.issue.number}`);
+            console.log(`DEBUG: context.payload.inputs.pr_number: ${context.payload.inputs ? context.payload.inputs.pr_number : 'undefined'}`);
+            console.log(`DEBUG: Resolved PR Number: ${prNumber}`);
+
             await github.rest.pulls.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
