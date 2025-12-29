@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const results = JSON.parse(fs.readFileSync('playwright-results.json', 'utf8'));
 

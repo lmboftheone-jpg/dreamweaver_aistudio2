@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const ctx = JSON.parse(fs.readFileSync('issue-context.json', 'utf8'));
 

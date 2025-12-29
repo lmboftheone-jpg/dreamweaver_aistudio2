@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const resultFile = 'playwright-results.json';
 if (!fs.existsSync(resultFile)) {

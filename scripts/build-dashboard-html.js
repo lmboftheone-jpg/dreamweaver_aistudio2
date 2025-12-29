@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const scores = fs.readFileSync('ci/agent-scores.json', 'utf8');
 const failures = fs.readFileSync('ci/agent-failures.json', 'utf8');

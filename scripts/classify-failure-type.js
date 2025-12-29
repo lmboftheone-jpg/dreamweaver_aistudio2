@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const ctx = JSON.parse(fs.readFileSync('failure-context.json', 'utf8'));
 
