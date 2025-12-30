@@ -51,6 +51,14 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo  rm -rf /usr/share/dotnet
 
+      - name: Load Issue Context
+        run: |
+          if [ -f issue-context.json ]; then
+            echo "ISSUE_CONTEXT=$(cat issue-context.json | jq -c .)" >> $GITHUB_ENV
+          else
+            echo "ISSUE_CONTEXT={}" >> $GITHUB_ENV
+          fi
+
       - name: Install dependencies
         run: |
           npm ci --legacy-peer-deps
@@ -71,6 +79,19 @@ jobs:
 
       - name: Run Smoke Tests
         run: npx playwright test tests/smoke
+
+      - name: Simulate Critical Failure
+        if: success()
+        run: |
+          echo "Checking for forced critical failure..."
+          FORCE_FAIL=$(echo '${{ env.ISSUE_CONTEXT }}' | jq -r '.flags.forceCriticalFail // false')
+          if [ "$FORCE_FAIL" == "true" ]; then
+            echo "🚨 SIMULATING CRITICAL FAILURE (Flag: forceCriticalFail=true)"
+            echo "Blocking PR promotion to Ready."
+            exit 1
+          else
+            echo "No forced failure. Proceeding."
+          fi
 
       - name: Mark PR Ready
         if: success()
