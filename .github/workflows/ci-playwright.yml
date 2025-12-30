@@ -261,7 +261,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agent-dashboard
-          path: dashboard/agent-dashboard.html
+          path: |
+            dashboard/agent-dashboard.html
+            quality-score.json
 
       # ------------------------------
       # PR Comment (Dashboard Link)
@@ -380,3 +382,103 @@ jobs:
               pull_number: prNumber,
               merge_method: 'squash'
             });
+
+  # =========================================================
+  # 3️⃣ Report Decision (Summary)
+  # =========================================================
+  report-decision:
+    name: 📝 Report Decision
+    runs-on: ubuntu-latest
+    needs: [smoke-test, quality-gate]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/head', inputs.pr_number) || '' }}
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: agent-dashboard
+
+      - name: Load Context & Determine Decision
+        id: decision_logic
+        env:
+          SMOKE_RESULT: ${{ needs.smoke-test.result }}
+          QUALITY_RESULT: ${{ needs.quality-gate.result }}
+        run: |
+          # 1. Load Issue Context
+          if [ -f issue-context.json ]; then
+            ISSUE_CONTEXT=$(cat issue-context.json)
+          else
+            ISSUE_CONTEXT="{}"
+          fi
+
+          # Parse Flags
+          FORCE_CRITICAL=$(echo "$ISSUE_CONTEXT" | jq -r '.flags.forceCriticalFail // false')
+          SMOKE_ONLY=$(echo "$ISSUE_CONTEXT" | jq -r '.flags.smokeOnly // false')
+          FORCE_LOW=$(echo "$ISSUE_CONTEXT" | jq -r '.flags.forceLowScore // false')
+          DISABLE_MERGE=$(echo "$ISSUE_CONTEXT" | jq -r '.flags.disableAutoMerge // false')
+
+          # 2. Get Score
+          QUALITY_SCORE=0
+          if [ -f quality-score.json ]; then
+            QUALITY_SCORE=$(jq -r '.score // 0' quality-score.json)
+          fi
+
+          echo "Debug: SMOKE_RESULT=$SMOKE_RESULT, QUALITY_RESULT=$QUALITY_RESULT, SCORE=$QUALITY_SCORE"
+
+          # 3. Determine Verdict
+          DECISION="UNKNOWN"
+
+          if [ "$SMOKE_RESULT" == "failure" ]; then
+            if [ "$FORCE_CRITICAL" == "true" ]; then
+              DECISION="BLOCK_CRITICAL"
+            else
+              DECISION="BLOCK_SMOKE_FAIL"
+            fi
+          elif [ "$SMOKE_ONLY" == "true" ] && [ "$SMOKE_RESULT" == "success" ]; then
+            DECISION="READY_ONLY"
+          elif [ "$QUALITY_RESULT" == "failure" ]; then
+             # Could be score or script error. Assume score if forceLow is set.
+             if [ "$FORCE_LOW" == "true" ]; then
+               DECISION="BLOCK_LOW_QUALITY" # Or BLOCK_AGENT_POLICY if that's preferred
+             elif [ "$QUALITY_SCORE" -lt 70 ]; then # Assuming 70/80 threshold
+               DECISION="BLOCK_LOW_QUALITY"
+             else
+               DECISION="BLOCK_LOW_QUALITY" # Default for quality gate fail
+             fi
+          elif [ "$QUALITY_RESULT" == "success" ]; then
+             if [ "$DISABLE_MERGE" == "true" ]; then
+               DECISION="READY_NO_MERGE"
+             else
+               DECISION="READY_AND_MERGE"
+             fi
+          fi
+
+          echo "Final Decision: $DECISION"
+
+          # 4. Generate Comment
+          # usage: ./decision_comment.sh <DECISION> <SCORE> <THRESHOLD>
+          chmod +x .github/scripts/decision_comment.sh
+          .github/scripts/decision_comment.sh "$DECISION" "$QUALITY_SCORE" "70"
+
+      - name: Post Decision Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const prNumber = context.payload.inputs ? context.payload.inputs.pr_number : context.issue.number;
+             
+            if (fs.existsSync('decision_comment.md')) {
+              const body = fs.readFileSync('decision_comment.md', 'utf8');
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            } else {
+              console.log('No decision_comment.md found.');
+            }
