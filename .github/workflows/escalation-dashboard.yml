@@ -1,0 +1,44 @@
+name: 📊 Escalation Statistics Dashboard
+
+on:
+  schedule:
+    - cron: "0 2 * * 1"   # weekly (Mon)
+    - cron: "0 3 1 * *"   # monthly
+  workflow_dispatch:
+
+permissions:
+  issues: read
+  contents: read
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📈 Collect weekly stats
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash .github/scripts/collect_escalation_stats.sh week
+          bash .github/scripts/render_escalation_dashboard.sh week stats.json
+
+      - name: 📈 Collect monthly stats
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash .github/scripts/collect_escalation_stats.sh month
+          bash .github/scripts/render_escalation_dashboard.sh month stats.json
+
+      - name: 📦 Upload dashboards
+        uses: actions/upload-artifact@v4
+        with:
+          name: escalation-dashboard
+          path: escalation-dashboard-*.html
+      - name: 📣 Send weekly Slack report
+      if: github.event.schedule == '0 2 * * 1'
+      env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+          DASHBOARD_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          bash .github/scripts/send_escalation_slack.sh stats.json "$DASHBOARD_URL"

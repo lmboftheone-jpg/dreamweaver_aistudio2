@@ -1,0 +1,92 @@
+name: 🧠 Decision Gate
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: number
+      smoke_pass:
+        required: true
+        type: boolean
+      quality_score:
+        required: true
+        type: number
+      quality_threshold:
+        required: true
+        type: number
+      smoke_only:
+        required: true
+        type: boolean
+      force_critical_fail:
+        required: true
+        type: boolean
+      simulate_low_agent:
+        required: true
+        type: boolean
+      disable_auto_merge:
+        required: true
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: write
+
+jobs:
+  decide:
+    runs-on: ubuntu-latest
+    outputs:
+      decision: ${{ steps.decision.outputs.decision }}
+    steps:
+      - name: 🧠 Evaluate Decision
+        id: decision
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          SMOKE_PASS: ${{ inputs.smoke_pass }}
+          QUALITY_SCORE: ${{ inputs.quality_score }}
+          QUALITY_THRESHOLD: ${{ inputs.quality_threshold }}
+          SMOKE_ONLY: ${{ inputs.smoke_only }}
+          FORCE_CRITICAL_FAIL: ${{ inputs.force_critical_fail }}
+          SIMULATE_LOW_AGENT: ${{ inputs.simulate_low_agent }}
+          DISABLE_AUTO_MERGE: ${{ inputs.disable_auto_merge }}
+        run: |
+          echo "🔍 Decision inputs:"
+          env | grep -E "PR_NUMBER|SMOKE|QUALITY|FORCE|SIMULATE|DISABLE"
+
+          # 1️⃣ Critical failure
+          if [ "$FORCE_CRITICAL_FAIL" == "true" ]; then
+            echo "decision=BLOCK_CRITICAL" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # 2️⃣ Smoke test failure
+          if [ "$SMOKE_PASS" != "true" ]; then
+            echo "decision=BLOCK_SMOKE_FAIL" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # 3️⃣ Agent policy block
+          if [ "$SIMULATE_LOW_AGENT" == "true" ]; then
+            echo "decision=BLOCK_AGENT_POLICY" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # 4️⃣ Quality gate
+          if [ "$QUALITY_SCORE" -lt "$QUALITY_THRESHOLD" ]; then
+            echo "decision=BLOCK_LOW_QUALITY" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # 5️⃣ Smoke-only mode
+          if [ "$SMOKE_ONLY" == "true" ]; then
+            echo "decision=READY_ONLY" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 6️⃣ Full pass
+          if [ "$DISABLE_AUTO_MERGE" == "true" ]; then
+            echo "decision=READY_NO_MERGE" >> $GITHUB_OUTPUT
+          else
+            echo "decision=READY_AND_MERGE" >> $GITHUB_OUTPUT
+          fi

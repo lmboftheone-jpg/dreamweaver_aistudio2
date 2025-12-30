@@ -1,0 +1,68 @@
+name: 🔁 Retry Pipeline from Issue
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.issue.pull_request == null &&
+      contains(
+        'retry-ci retry-smoke-only human-approved',
+        github.event.label.name
+      )
+
+    steps:
+      - name: 🔍 Extract linked PR number
+        id: extract
+        run: |
+          PR=$(echo "${{ github.event.issue.body }}" | grep -oE '#[0-9]+' | head -n1 | tr -d '#')
+          if [ -z "$PR" ]; then
+            echo "❌ No linked PR found"
+            exit 1
+          fi
+          echo "PR_NUMBER=$PR" >> $GITHUB_ENV
+
+      - name: 🧠 Set retry flags
+        run: |
+          case "${{ github.event.label.name }}" in
+            retry-smoke-only)
+              echo "SMOKE_ONLY=true" >> $GITHUB_ENV
+              ;;
+            human-approved)
+              echo "HUMAN_OVERRIDE=true" >> $GITHUB_ENV
+              ;;
+            retry-ci)
+              echo "FULL_RETRY=true" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: 🚀 Re-dispatch pipeline
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run issue-trigger.yml \
+            -f pr_number=$PR_NUMBER \
+            -f retry=true \
+            -f smoke_only=${SMOKE_ONLY:-false} \
+            -f human_override=${HUMAN_OVERRIDE:-false}
+      - name: 🏷️ Mark retry running
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue edit ${{ github.event.issue.number }} \
+            --add-label retry-running \
+            --remove-label blocked
+
+      - name: 📌 Set result
+        id: result
+        run: |
+          echo "status=success" >> $GITHUB_OUTPUT

@@ -1,0 +1,26 @@
+- name: 🔢 Check retry count
+  id: retry_check
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  run: |
+    MAX_RETRY=2
+
+    COUNT=$(gh issue view ${{ github.event.issue.number }} \
+      --json labels \
+      --jq '[.labels[].name | select(startswith("retry-"))] | length')
+
+    echo "Retry count: $COUNT / $MAX_RETRY"
+
+    if [ "$COUNT" -ge "$MAX_RETRY" ]; then
+      echo "ESCALATE=true" >> $GITHUB_ENV
+    else
+      NEXT=$((COUNT + 1))
+      echo "RETRY_LABEL=retry-$NEXT" >> $GITHUB_ENV
+    fi
+
+
+retry:
+  max_attempts: 2
+  escalation:
+    label: escalation-required
+    assignee: human-reviewer
