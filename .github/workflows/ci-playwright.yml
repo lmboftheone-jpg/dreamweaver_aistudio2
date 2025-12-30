@@ -101,18 +101,31 @@ jobs:
               if (!pr.data.draft) {
                 console.log('DEBUG: PR is already ready (not a draft). Skipping update.');
               } else {
-                 console.log(`DEBUG: Marking PR #${prNumber} as ready for review...`);
+                 console.log(`DEBUG: Marking PR #${prNumber} as ready for review (via GraphQL)...`);
                  
-                 // Using GraphQL mutation as a more robust alternative for converting to ready for review if rest fails or just to be sure
-                 // But sticking to REST first with better logging.
-                 const response = await github.rest.pulls.update({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: prNumber,
-                  draft: false
-                });
-                console.log(`DEBUG: Update response status: ${response.status}`);
-                console.log(`DEBUG: PR is now: ${response.data.draft ? 'Draft' : 'Ready'}`);
+                 // REST API 'draft: false' can be flaky. Using GraphQL mutation is the reliable standard.
+                 const mutation = `
+                   mutation($pullRequestId: ID!) {
+                     markPullRequestReadyForReview(input: {pullRequestId: $pullRequestId}) {
+                       pullRequest {
+                         isDraft
+                       }
+                     }
+                   }
+                 `;
+                 
+                 const variables = {
+                   pullRequestId: pr.data.node_id
+                 };
+                 
+                 try {
+                   const result = await github.graphql(mutation, variables);
+                   const isDraft = result.markPullRequestReadyForReview.pullRequest.isDraft;
+                   console.log(`DEBUG: GraphQL mutation success. PR is now: ${isDraft ? 'Draft' : 'Ready'}`);
+                 } catch (gqlError) {
+                   console.error(`ERROR: GraphQL mutation failed: ${JSON.stringify(gqlError)}`);
+                   throw gqlError;
+                 }
               }
             } catch (error) {
               console.error(`ERROR: Failed to update PR status: ${error.message}`);
