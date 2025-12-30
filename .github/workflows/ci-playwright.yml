@@ -77,17 +77,47 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = context.payload.inputs ? context.payload.inputs.pr_number : context.issue.number;
-            console.log(`DEBUG: context.issue.number: ${context.issue.number}`);
-            console.log(`DEBUG: context.payload.inputs.pr_number: ${context.payload.inputs ? context.payload.inputs.pr_number : 'undefined'}`);
-            console.log(`DEBUG: Resolved PR Number: ${prNumber}`);
+            // PR Number parsing (Critical: must be integer)
+            const inputPr = context.payload.inputs ? context.payload.inputs.pr_number : context.issue.number;
+            const prNumber = parseInt(inputPr, 10);
 
-            await github.rest.pulls.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-              draft: false
-            });
+            console.log(`DEBUG: context.issue.number: ${context.issue.number}`);
+            console.log(`DEBUG: Raw input pr_number: ${inputPr}`);
+            console.log(`DEBUG: Resolved Int PR Number: ${prNumber}`);
+
+            if (isNaN(prNumber)) {
+              core.setFailed(`Invalid PR Number: ${inputPr}`);
+              return;
+            }
+
+            try {
+              const pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+              console.log(`DEBUG: PR before update - State: ${pr.data.state}, Draft: ${pr.data.draft}`);
+              
+              if (!pr.data.draft) {
+                console.log('DEBUG: PR is already ready (not a draft). Skipping update.');
+              } else {
+                 console.log(`DEBUG: Marking PR #${prNumber} as ready for review...`);
+                 
+                 // Using GraphQL mutation as a more robust alternative for converting to ready for review if rest fails or just to be sure
+                 // But sticking to REST first with better logging.
+                 const response = await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  draft: false
+                });
+                console.log(`DEBUG: Update response status: ${response.status}`);
+                console.log(`DEBUG: PR is now: ${response.data.draft ? 'Draft' : 'Ready'}`);
+              }
+            } catch (error) {
+              console.error(`ERROR: Failed to update PR status: ${error.message}`);
+              core.setFailed(`Failed to update PR: ${error.message}`);
+            }
 
   # =========================================================
   # 2️⃣ Quality Gate (Main Pipeline)
