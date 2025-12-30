@@ -47,7 +47,23 @@ const score =
   Math.max(0, 1 - retries / Math.max(1, total)) * 15 +
   rate(passed, total) * 15;
 
-const finalScore = Math.round(score);
+let finalScore = Math.round(score);
+
+// ------------------------------------
+// Policy Enforcement (Force Low Score)
+// ------------------------------------
+try {
+  const contextStr = process.env.ISSUE_CONTEXT;
+  if (contextStr) {
+    const context = JSON.parse(contextStr);
+    if (context.flags && (context.flags.forceLowScore === true || context.flags.simulateLowAgent === true)) {
+      console.log('🚨 POLICY ENFORCEMENT: Forcing Low Score (Simulated Agent Quality Issue)');
+      finalScore = 50; // Forced Fail (< 80)
+    }
+  }
+} catch (e) {
+  console.warn('Failed to parse ISSUE_CONTEXT during score calculation:', e);
+}
 
 fs.writeFileSync(
   'quality-score.json',
