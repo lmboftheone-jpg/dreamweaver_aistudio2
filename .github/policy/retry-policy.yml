@@ -18,9 +18,8 @@
       echo "RETRY_LABEL=retry-$NEXT" >> $GITHUB_ENV
     fi
 
-
-retry:
-  max_attempts: 2
-  escalation:
-    label: escalation-required
-    assignee: human-reviewer
+# retry:
+#   max_attempts: 2
+#   escalation:
+#     label: escalation-required
+#     assignee: human-reviewer
