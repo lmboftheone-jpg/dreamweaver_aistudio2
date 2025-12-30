@@ -1,8 +1,8 @@
 {
   "agent": "antigravity",
   "expected": {
-    "smokeOnly": true,
-    "fullPass": false,
+    "smokeOnly": false,
+    "fullPass": true,
     "failCritical": false,
     "failScore": false,
     "policyBlock": false
