@@ -75,6 +75,42 @@ jobs:
 
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
+      - name: 🧠 Apply retry overrides
+        run: |
+          if [ "${{ inputs.retry }}" == "true" ]; then
+            echo "RETRY_MODE=true" >> $GITHUB_ENV
+          fi
+
+          if [ "${{ inputs.smoke_only }}" == "true" ]; then
+            echo "SMOKE_ONLY=true" >> $GITHUB_ENV
+          fi
+
+          if [ "${{ inputs.human_override }}" == "true" ]; then
+            echo "FORCE_PASS_AGENT_POLICY=true" >> $GITHUB_ENV
+          fi
+
+      - name: 🧠 Apply retry overrides
+        run: |
+          if [ "${{ inputs.retry }}" == "true" ]; then
+            echo "RETRY_MODE=true" >> $GITHUB_ENV
+          fi
+
+          if [ "${{ inputs.smoke_only }}" == "true" ]; then
+            echo "SMOKE_ONLY=true" >> $GITHUB_ENV
+          fi
+
+          if [ "${{ inputs.human_override }}" == "true" ]; then
+            echo "FORCE_PASS_AGENT_POLICY=true" >> $GITHUB_ENV
+          fi
+
+      - name: 🧹 Close retry issue
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue close ${{ github.event.issue.number }} \
+            --comment "✅ Retry triggered. Closing this issue."
+
       - name: Create or Reuse Draft PR
         uses: actions/github-script@v7
         with:
