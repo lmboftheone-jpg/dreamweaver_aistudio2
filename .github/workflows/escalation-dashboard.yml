@@ -36,7 +36,7 @@ jobs:
           name: escalation-dashboard
           path: escalation-dashboard-*.html
       - name: 📣 Send weekly Slack report
-        if: github.event.schedule == '0 2 * * 1'
+        if: github.event.schedule == '0 2 * * 1' || github.event_name == 'workflow_dispatch'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
