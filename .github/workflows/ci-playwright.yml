@@ -256,6 +256,12 @@ jobs:
         if: always()
         run: node scripts/build-dashboard-html.js
 
+      - name: 🏷️ Inject Decision Badge into Dashboard
+        run: |
+          bash .github/scripts/inject_decision_badge.sh \
+            "${{ needs.decision.outputs.decision }}" \
+            agent-dashboard.html
+
       - name: Upload Dashboard Artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -264,6 +270,17 @@ jobs:
           path: |
             dashboard/agent-dashboard.html
             quality-score.json
+
+      - name: 🐞 Create Block Issue
+        if: startsWith(needs.decision.outputs.decision, 'BLOCK')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash .github/scripts/create_block_issue.sh \
+            "${{ needs.decision.outputs.decision }}" \
+            "${{ env.PR_NUMBER }}" \
+            "${{ env.QUALITY_SCORE }}" \
+            "70"
 
       # ------------------------------
       # PR Comment (Dashboard Link)
@@ -471,6 +488,11 @@ jobs:
             const fs = require('fs');
             const prNumber = context.payload.inputs ? context.payload.inputs.pr_number : context.issue.number;
              
+            if (!prNumber) {
+              console.log('No PR number found (likely a push event). Skipping comment.');
+              return;
+            }
+
             if (fs.existsSync('decision_comment.md')) {
               const body = fs.readFileSync('decision_comment.md', 'utf8');
               await github.rest.issues.createComment({
