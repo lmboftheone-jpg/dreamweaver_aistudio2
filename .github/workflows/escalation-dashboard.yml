@@ -35,8 +35,13 @@ jobs:
         with:
           name: escalation-dashboard
           path: escalation-dashboard-*.html
+      - name: � Debug Event Info
+        run: |
+          echo "Event Name: ${{ github.event_name }}"
+          echo "Schedule: ${{ github.event.schedule }}"
+
       - name: 📣 Send weekly Slack report
-        if: github.event.schedule == '0 2 * * 1' || github.event_name == 'workflow_dispatch'
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '0 2 * * 1' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
