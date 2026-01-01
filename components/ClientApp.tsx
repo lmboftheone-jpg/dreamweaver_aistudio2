@@ -8,6 +8,7 @@ import Settings from './views/Settings';
 import ErrorBoundary from './layout/ErrorBoundary';
 import Community from './views/Community';
 import CollaborationRoom from './views/CollaborationRoom';
+import CIDashboard from './views/CIDashboard';
 import { View, Story } from '../types';
 import { MOCK_STORIES } from '../lib/constants';
 import { useAuth } from '../contexts/AuthContext';
@@ -262,6 +263,8 @@ const ClientApp: React.FC = () => {
           {currentView === View.Collaboration && (
             <CollaborationRoom onBack={() => navigate(View.Home)} />
           )}
+
+          {currentView === View.CIDashboard && <CIDashboard />}
         </main>
 
         <footer className="py-8 border-t border-gray-200 dark:border-gray-800 text-center text-sm text-gray-500">

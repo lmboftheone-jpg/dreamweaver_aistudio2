@@ -93,6 +93,14 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
           >
             <span className="material-symbols-outlined text-xl">settings</span>
           </button>
+
+          <button
+            onClick={() => onNavigate(View.CIDashboard)}
+            className={`w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ml-2 ${currentView === View.CIDashboard ? 'bg-primary text-white' : ''}`}
+            title="State Engine Dashboard"
+          >
+            <span className="material-symbols-outlined text-xl">dns</span>
+          </button>
         </nav>
       </div>
     </header>

@@ -100,5 +100,6 @@ export enum View {
     Settings = 'settings',
     Gallery = 'gallery',
     Collaboration = 'collaboration',
-    Marketplace = 'marketplace'
+    Marketplace = 'marketplace',
+    CIDashboard = 'ci_dashboard'
 }
