@@ -41,7 +41,7 @@ jobs:
           echo "Schedule: ${{ github.event.schedule }}"
 
       - name: 📣 Send weekly Slack report
-       
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '0 2 * * 1' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
