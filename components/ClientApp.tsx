@@ -87,10 +87,10 @@ const ClientApp: React.FC = () => {
 
   // Sync to LocalStorage as backup (or if using fallback)
   useEffect(() => {
-    if (!supabase) {
+    if (!user) {
       localStorage.setItem('dreamweave_stories', JSON.stringify(userStories));
     }
-  }, [userStories]);
+  }, [userStories, user]);
 
   useEffect(() => {
     // Listen for POD orders from Library
