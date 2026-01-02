@@ -1,0 +1,25 @@
+name: Vercel Prebuild Check
+
+on:
+    pull_request:
+    push:
+        branches: [main]
+
+jobs:
+    prebuild-check:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 18
+
+            - run: npm ci
+
+            - run: bash scripts/check-vercel-prebuild.sh
+              env:
+                  SLACK_SIGNING_SECRET: placeholder_for_ci
+                  GITHUB_WEBHOOK_SECRET: placeholder_for_ci
+                  NODE_ENV: production
