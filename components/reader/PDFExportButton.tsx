@@ -3,7 +3,7 @@
 import React from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import StoryPDF from './StoryPDF';
-import { Story } from '../types';
+import { Story } from '../../types';
 
 interface PDFExportButtonProps {
     story: Partial<Story>;
