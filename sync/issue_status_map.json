@@ -1,0 +1,54 @@
+{
+    "OPEN": {
+        "github": {
+            "state": "open",
+            "labels": []
+        },
+        "slack": {
+            "emoji": "🟡",
+            "text": "Open"
+        }
+    },
+    "IN_PROGRESS": {
+        "github": {
+            "labels": [
+                "in-progress"
+            ]
+        },
+        "slack": {
+            "emoji": "🔵",
+            "text": "In Progress"
+        }
+    },
+    "BLOCKED": {
+        "github": {
+            "labels": [
+                "blocked"
+            ]
+        },
+        "slack": {
+            "emoji": "⛔",
+            "text": "Blocked"
+        }
+    },
+    "HUMAN_ONLY": {
+        "github": {
+            "labels": [
+                "human-only"
+            ]
+        },
+        "slack": {
+            "emoji": "🧑‍⚖️",
+            "text": "Human Approval Required"
+        }
+    },
+    "DONE": {
+        "github": {
+            "state": "closed"
+        },
+        "slack": {
+            "emoji": "✅",
+            "text": "Done"
+        }
+    }
+}

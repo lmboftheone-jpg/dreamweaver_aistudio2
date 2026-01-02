@@ -1,0 +1,24 @@
+{
+    "patterns": [
+        {
+            "id": "security_env",
+            "match": "SECRET|TOKEN|SIGNING|KEY",
+            "reason": "보안 관련 환경 변수 변경"
+        },
+        {
+            "id": "auth_logic",
+            "match": "auth|oauth|permission",
+            "reason": "인증/권한 로직 변경"
+        },
+        {
+            "id": "database",
+            "match": "migration|schema|ALTER TABLE",
+            "reason": "DB 구조 변경"
+        },
+        {
+            "id": "payment",
+            "match": "payment|billing|charge",
+            "reason": "결제/과금 로직"
+        }
+    ]
+}

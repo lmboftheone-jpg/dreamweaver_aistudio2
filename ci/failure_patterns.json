@@ -1,0 +1,22 @@
+{
+    "missing_env": {
+        "count": 0,
+        "threshold": 2,
+        "message": "환경 변수 누락이 반복 발생"
+    },
+    "node_version": {
+        "count": 0,
+        "threshold": 2,
+        "message": "Node 버전 불일치 반복"
+    },
+    "build_time_fetch": {
+        "count": 0,
+        "threshold": 1,
+        "message": "빌드 타임 외부 API 호출"
+    },
+    "next_route_error": {
+        "count": 0,
+        "threshold": 2,
+        "message": "Next.js API Route 구조 오류"
+    }
+}

@@ -1,0 +1,8 @@
+{
+    "pattern": "build_time_fetch",
+    "suggestion": {
+        "fail_fast_threshold": 1,
+        "auto_retry": false
+    },
+    "confidence": 0.92
+}

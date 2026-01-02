@@ -1,0 +1,24 @@
+[
+    {
+        "input": {
+            "failure_pattern": "build_time_fetch",
+            "retry_success_rate": 0.05,
+            "human_approval_rate": 0.10
+        },
+        "expected": {
+            "recommended_threshold": 1,
+            "auto_retry": false
+        }
+    },
+    {
+        "input": {
+            "failure_pattern": "missing_env",
+            "retry_success_rate": 0.60,
+            "human_approval_rate": 0.95
+        },
+        "expected": {
+            "recommended_threshold": 3,
+            "human_only": true
+        }
+    }
+]
