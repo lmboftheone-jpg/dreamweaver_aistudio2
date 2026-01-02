@@ -1,0 +1,10 @@
+Analyze the following failure patterns and recommend a "fail fast" threshold.
+If a pattern is frequent and has a clear signature, suggest a lower threshold.
+Input JSON contains "failure_patterns".
+
+Output JSON format:
+{
+  "pattern_name": "string",
+  "recommended_threshold": number,
+  "confidence": number
+}
