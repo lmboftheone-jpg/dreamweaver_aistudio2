@@ -4,6 +4,11 @@ set -e
 LOG_FILE=$1
 PATTERN_FILE="ci/failure_patterns.json"
 
+if [ ! -f "$LOG_FILE" ]; then
+  echo "⚠️ Log file '$LOG_FILE' not found. Skipping pattern update."
+  exit 0
+fi
+
 update_pattern () {
   local key=$1
   jq ".$key.count += 1" "$PATTERN_FILE" > tmp.json && mv tmp.json "$PATTERN_FILE"

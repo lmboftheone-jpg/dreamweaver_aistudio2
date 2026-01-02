@@ -1,0 +1,8 @@
+Final decision: Should the deployment gate be applied?
+Synthesize all policy inputs.
+
+Output JSON format:
+{
+  "apply_gate": boolean,
+  "summary": "string"
+}

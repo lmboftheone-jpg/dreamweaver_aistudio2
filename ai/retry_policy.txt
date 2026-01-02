@@ -1,0 +1,9 @@
+Decide whether to enable "Auto Retry" for a given failure pattern.
+Transient network issues (like fetch failed) are good candidates for auto-retry.
+Persistent configuration errors (like missing env) should NOT be retried.
+
+Output JSON format:
+{
+  "auto_retry": boolean,
+  "max_retries": number
+}

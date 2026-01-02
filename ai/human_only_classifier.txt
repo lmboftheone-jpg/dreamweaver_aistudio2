@@ -1,0 +1,10 @@
+Determine if the current deployment requires "Human Only" approval.
+Security credential changes, payment logic, and core auth changes usually require human review.
+Input JSON contains "human_only_rules" and recent commit metadata.
+
+Output JSON format:
+{
+  "requires_human": boolean,
+  "reason": "string",
+  "risk_score": number (0-1)
+}
