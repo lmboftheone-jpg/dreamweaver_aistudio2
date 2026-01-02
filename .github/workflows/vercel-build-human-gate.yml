@@ -1,0 +1,34 @@
+name: Vercel Build (Human Gate)
+
+on:
+    pull_request:
+    push:
+        branches: [main]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 18
+
+            - run: npm ci
+
+            - name: Build
+              id: build
+              run: |
+                  npm run build 2>&1 | tee build.log
+              continue-on-error: true
+
+            - name: Human-Only Check
+              run: bash scripts/human-only-check.sh build.log
+
+            - name: Stop for Human Approval
+              if: failure() && steps.build.outcome == 'failure'
+              run: |
+                  echo "HUMAN_ONLY_REQUIRED=true" >> $GITHUB_ENV
+                  exit 1

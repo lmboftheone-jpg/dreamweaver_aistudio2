@@ -1,0 +1,48 @@
+name: Vercel Build & Slack Alert
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 18
+
+            - run: npm ci
+
+            - name: Prebuild Check
+              run: bash scripts/check-vercel-prebuild.sh
+              env:
+                  SLACK_SIGNING_SECRET: placeholder_for_ci
+                  GITHUB_WEBHOOK_SECRET: placeholder_for_ci
+                  NODE_ENV: production
+
+            - name: Vercel Build
+              id: vercel
+              run: |
+                  npm run build 2>&1 | tee build.log
+
+            - name: Summarize Failure
+              if: failure()
+              run: |
+                  SUMMARY=$(bash scripts/summarize-vercel-failure.sh build.log)
+                  echo "SUMMARY<<EOF" >> $GITHUB_ENV
+                  echo "$SUMMARY" >> $GITHUB_ENV
+                  echo "EOF" >> $GITHUB_ENV
+
+            - name: Notify Slack
+              if: failure()
+              run: |
+                  bash scripts/send-slack-alert.sh \
+                    "$SUMMARY" \
+                    "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              env:
+                  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

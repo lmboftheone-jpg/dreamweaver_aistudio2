@@ -1,0 +1,28 @@
+import express from "express"
+import bodyParser from "body-parser"
+import crypto from "crypto"
+
+const app = express()
+app.use(bodyParser.urlencoded({ extended: true }))
+
+app.post("/api/slack/actions", async (req, res) => {
+    const payload = JSON.parse(req.body.payload)
+    const action = payload.actions[0].value
+
+    if (action === "retry") {
+        await triggerGithubWorkflow(payload)
+    }
+
+    if (action === "ignore") {
+        await markIgnoreOnce()
+        await triggerGithubWorkflow(payload)
+    }
+
+    if (action === "reset") {
+        await resetFailCounters()
+    }
+
+    res.json({
+        text: "✅ 처리 완료"
+    })
+})

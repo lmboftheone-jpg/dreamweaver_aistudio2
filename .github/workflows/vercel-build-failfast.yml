@@ -1,0 +1,37 @@
+name: Vercel Build (Fail Fast)
+
+on:
+    pull_request:
+    push:
+        branches: [main]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Fail Fast Check
+              run: bash scripts/fail-fast-check.sh
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 18
+
+            - run: npm ci
+
+            - name: Build
+              id: build
+              run: |
+                  npm run build 2>&1 | tee build.log
+
+            - name: Update Failure Patterns
+              if: failure()
+              run: |
+                  bash scripts/update-failure-patterns.sh build.log
+                  git config user.name "ci-bot"
+                  git config user.email "ci@bot"
+                  git add ci/failure_patterns.json
+                  git commit -m "ci: update failure patterns" || true
+                  git push

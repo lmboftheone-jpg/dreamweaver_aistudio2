@@ -1,0 +1,8 @@
+{
+    "timestamp": "2026-01-02T12:30:00Z",
+    "issue": 124,
+    "from": "BLOCKED",
+    "to": "IN_PROGRESS",
+    "trigger": "slack_button",
+    "user": "slack:U123456"
+}

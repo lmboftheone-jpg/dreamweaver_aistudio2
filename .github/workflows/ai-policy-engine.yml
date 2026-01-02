@@ -1,0 +1,43 @@
+name: AI Policy Engine
+
+on:
+    workflow_run:
+        workflows: ["Vercel Build (Fail Fast)"]
+        types: [completed]
+
+jobs:
+    ai-policy:
+        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Collect Runtime Data
+              run: bash scripts/collect-ai-input.sh
+
+            - name: Run Fail Fast AI
+              run: bash scripts/run-ai-policy.sh fail_fast_threshold
+              env:
+                  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+            - name: Run Human-Only AI
+              run: bash scripts/run-ai-policy.sh human_only_classifier
+              env:
+                  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+            - name: Run Retry Policy AI
+              run: bash scripts/run-ai-policy.sh retry_policy
+              env:
+                  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+            - name: Decide Auto Apply
+              run: bash scripts/run-ai-policy.sh apply_gate
+              env:
+                  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+            - name: Upload Policy Output
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ai-policy-output
+                  path: ai/output

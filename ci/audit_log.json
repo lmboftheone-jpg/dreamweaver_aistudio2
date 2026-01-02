@@ -1,0 +1,6 @@
+{
+    "timestamp": "2026-01-02T10:11:00Z",
+    "approved_by": "slack_user_id",
+    "reason": "security_env",
+    "commit": "a1b2c3"
+}
