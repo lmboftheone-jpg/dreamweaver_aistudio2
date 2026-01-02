@@ -117,7 +117,8 @@ const ClientApp: React.FC = () => {
 
   const navigate = (view: View, story?: Story) => {
     // Route Protection
-    if ((view === View.Library || view === View.Create || view === View.Settings) && !user) {
+    if ((view === View.Settings) && !user) {
+      // Library and Create are accessible without login (uses local storage)
       if (confirm("You need to sign in to access this feature. Sign in now?")) {
         login();
       }

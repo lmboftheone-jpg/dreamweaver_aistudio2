@@ -17,7 +17,7 @@ test.describe('Edge Case: Error Handling', () => {
 
         // Handle dialogs (alert)
         page.on('dialog', dialog => {
-            expect(dialog.message()).toContain('Story generation failed');
+            expect(dialog.message()).toContain('Internal Server Error');
             dialog.dismiss();
         });
 

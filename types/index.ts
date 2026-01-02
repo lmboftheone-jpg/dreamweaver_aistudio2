@@ -103,3 +103,11 @@ export enum View {
     Marketplace = 'marketplace',
     CIDashboard = 'ci_dashboard'
 }
+
+declare global {
+    namespace JSX {
+        interface IntrinsicElements {
+            'model-viewer': any;
+        }
+    }
+}

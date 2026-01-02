@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet, Font } from '@react-pdf/renderer';
-import { Story } from '../types';
+import { Story } from '../../types';
 
 // Define styles
 const styles = StyleSheet.create({

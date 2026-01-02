@@ -44,7 +44,7 @@ test.describe('Core Flow: Story Creation', () => {
         // 4. Verify Output (Draft Title should appear)
         // The UI shows "Create Your Adventure" initially, then updates to Title upon previewDraft being set.
         // We expect "Test Story: The Brave QA Engineer" from our mock.
-        await expect(page.getByText('Test Story: The Brave QA Engineer')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('h2', { hasText: 'Test Story: The Brave QA Engineer' })).toBeVisible({ timeout: 10000 });
 
         // 5. Check Pages
         await expect(page.getByText('Once upon a time')).toBeVisible();
