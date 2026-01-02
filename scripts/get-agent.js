@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH));
 const labels = event.pull_request?.labels || [];
